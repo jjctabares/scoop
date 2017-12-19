@@ -35,8 +35,8 @@ const routes = {
   },
   '/comments/:id': {
     //'GET': getComment,
-    //'PUT': updateComment,
-    //'DELETE': deleteComment
+    'PUT': updateComment,
+    'DELETE': deleteComment
   },
   '/comments/:id/upvote': {
     //'PUT': upvoteComment
@@ -51,14 +51,14 @@ function createComment(url, request) {
   const requestComment = request.body && request.body.comment;
   const response = {};
 
-  if (requestComment && requestComment.body&& requestComment.url &&
+  if (requestComment && requestComment.url &&
       requestComment.username && database.users[requestComment.username]) {
     const comment= {
       id: database.nextCommentId++,
       body: requestComment.body,
       url: requestComment.url,
       username: requestComment.username,
-      articleIds: [],
+      articleId: requestComment.articleId,
       upvotedBy: [],
       downvotedBy: []
     };
@@ -74,6 +74,52 @@ function createComment(url, request) {
 
   return response;
 }
+
+
+function updateComment(url, request) {
+  const id = Number(url.split('/').filter(segment => segment)[1]);
+  const savedComment = database.comments[id];
+  const requestComment = request.body && request.body.comment;
+  const response = {};
+
+  if (!id || !requestComment) {
+    response.status = 400;
+  } else if (!savedComment) {
+    response.status = 404;
+  } else {
+    savedComment.body = requestComment.body || savedComment.body;
+    savedComment.url = requestComment.url || savedComment.url;
+
+    response.body = {comment: savedComment};
+    response.status = 200;
+  }
+
+  return response;
+}
+
+function deleteComment(url, request) {
+  const id = Number(url.split('/').filter(segment => segment)[1]);
+  const savedComment = database.comments[id];
+  const response = {};
+
+  if (savedComment) {
+    //database.comments[id] = null;
+    savedComment.articleId.forEach(commentId => {
+      const comment = database.comments[commentId];
+      database.comments[commentId] = null;
+      const userCommentIds = database.users[comment.username].commentIds;
+      userCommentIds.splice(userCommentIds.indexOf(id), 1);
+    });
+    const userCommentIds = database.users[savedComment.username].commentIds;
+    userCommentIds.splice(userCommentIds.indexOf(id), 1);
+    response.status = 204;
+  } else {
+    response.status = 400;
+  }
+
+  return response;
+}
+
 /**/
 
 function getUser(url, request) {
